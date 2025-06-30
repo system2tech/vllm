@@ -879,12 +879,14 @@ def get_logprobs(
 
         # (num_selected_query_tokens, num_logprobs). Note that query_indices can
         # contain duplicates if beam search is enabled.
+        assert logprobs.size(0) == next_token_ids_gpu.size(0)
         selected_logprobs = logprobs[[
-            query_indices_gpu,
+            # query_indices_gpu,
+            torch.arange(next_token_ids_gpu.size(0), device=logprobs.device),
             next_token_ids_gpu,
         ]]
         ranks = _get_ranks(
-            logprobs[query_indices_gpu],
+            logprobs,
             next_token_ids_gpu,
         )
         assert selected_logprobs.shape[0] == ranks.shape[0]
@@ -1199,6 +1201,13 @@ def _get_next_prompt_tokens(
     next_token_index_start = computed_len + 1
     next_token_index_end = min(computed_len + query_len + 1,
                                len(prompt_tokens))
-    next_prompt_tokens = prompt_tokens[
-        next_token_index_start:next_token_index_end]
+    if not seq_group.sampling_params.prompt_logprob_token_indices:
+        next_prompt_tokens = prompt_tokens[
+            next_token_index_start:next_token_index_end]
+    else:
+        next_prompt_tokens = [
+            prompt_tokens[next_token_index_start + i]
+            for i in seq_group.sampling_params
+            .prompt_logprob_token_indices
+        ]
     return next_prompt_tokens

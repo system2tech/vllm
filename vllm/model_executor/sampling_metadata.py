@@ -309,8 +309,19 @@ def _prepare_seq_groups(
         """
 
         if sampling_params.prompt_logprobs is not None:
-            selected_token_indices.extend(
+            selected_prompt_logprob_indices = list(
                 range(model_output_idx, model_output_idx + prompt_logprob_len))
+            if sampling_params.prompt_logprob_token_indices:
+                # selected_token_indices determines for which tokens we
+                # compute logprobs. To avoid OOM, we request only
+                # logprobs for the tokens specified in
+                # prompt_logprob_token_indices.
+                selected_prompt_logprob_indices = [
+                    selected_prompt_logprob_indices[idx]
+                    for idx in sampling_params.prompt_logprob_token_indices
+                ]
+            selected_token_indices.extend(selected_prompt_logprob_indices)
+
         model_output_idx += prompt_logprob_len
         if do_sample:
             selected_token_indices.extend(
@@ -331,9 +342,19 @@ def _prepare_seq_groups(
         """
 
         if sampling_params.prompt_logprobs is not None:
-            prompt_logprob_indices.extend(
+            new_prompt_logprob_indices = list(
                 range(logit_idx, logit_idx + prompt_logprob_len))
-            logit_idx += prompt_logprob_len
+            if sampling_params.prompt_logprob_token_indices:
+                # prompt_logprob_indices determines for which tokens we
+                # compute logprobs. To avoid OOM, we request only
+                # logprobs for the tokens specified in
+                # prompt_logprob_token_indices.
+                new_prompt_logprob_indices = [
+                    new_prompt_logprob_indices[idx]
+                    for idx in sampling_params.prompt_logprob_token_indices
+                ]
+            prompt_logprob_indices.extend(new_prompt_logprob_indices)
+            logit_idx += len(new_prompt_logprob_indices)
         if do_sample:
             sample_indices.extend(range(logit_idx, logit_idx + sample_len))
             categorized_sample_indices[sampling_params.sampling_type].extend(

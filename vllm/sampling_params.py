@@ -232,6 +232,7 @@ class SamplingParams(
     include_stop_str_in_output: bool = False
     truncate_prompt_tokens: Optional[Annotated[int, msgspec.Meta(ge=1)]] = None
     output_kind: RequestOutputKind = RequestOutputKind.CUMULATIVE
+    prompt_logprob_token_indices: Optional[list[int]] = None
 
     # The below fields are not supposed to be used as an input.
     # They are set in post_init.
