@@ -316,10 +316,15 @@ def _prepare_seq_groups(
                 # compute logprobs. To avoid OOM, we request only
                 # logprobs for the tokens specified in
                 # prompt_logprob_token_indices.
-                selected_prompt_logprob_indices = [
-                    selected_prompt_logprob_indices[idx]
-                    for idx in sampling_params.prompt_logprob_token_indices
-                ]
+                if prompt_logprob_len == 0:
+                    # If prompt_logprob_len is 0, we do not need to
+                    # compute logprobs for the prompt tokens.
+                    selected_prompt_logprob_indices = []
+                else:
+                    selected_prompt_logprob_indices = [
+                        selected_prompt_logprob_indices[idx]
+                        for idx in sampling_params.prompt_logprob_token_indices
+                    ]
             selected_token_indices.extend(selected_prompt_logprob_indices)
 
         model_output_idx += prompt_logprob_len
@@ -349,10 +354,15 @@ def _prepare_seq_groups(
                 # compute logprobs. To avoid OOM, we request only
                 # logprobs for the tokens specified in
                 # prompt_logprob_token_indices.
-                new_prompt_logprob_indices = [
-                    new_prompt_logprob_indices[idx]
-                    for idx in sampling_params.prompt_logprob_token_indices
-                ]
+                if prompt_logprob_len == 0:
+                    # If prompt_logprob_len is 0, we do not need to
+                    # compute logprobs for the prompt tokens.
+                    new_prompt_logprob_indices = []
+                else:
+                    new_prompt_logprob_indices = [
+                        new_prompt_logprob_indices[idx]
+                        for idx in sampling_params.prompt_logprob_token_indices
+                    ]
             prompt_logprob_indices.extend(new_prompt_logprob_indices)
             logit_idx += len(new_prompt_logprob_indices)
         if do_sample:
