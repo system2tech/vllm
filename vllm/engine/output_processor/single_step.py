@@ -45,7 +45,9 @@ def single_step_process_prompt_logprob(
     # have a logprob associated with it.
     if prompt_logprobs is not None:
         if not seq_group.prompt_logprobs:
-            prompt_logprobs = [None] + prompt_logprobs
+            if (not seq_group.sampling_params.prompt_logprob_token_indices or
+                seq_group.sampling_params.prompt_logprob_token_indices[0] == 0):
+                prompt_logprobs = [None] + prompt_logprobs
             seq_group.prompt_logprobs = []
 
         assert hasattr(sg_output_proc, 'detokenizer')

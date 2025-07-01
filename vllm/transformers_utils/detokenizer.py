@@ -53,13 +53,21 @@ class Detokenizer:
         next_iter_tokens: list[str] = []
         prev_tokens = None
 
+        if prms.prompt_logprob_token_indices:
+            assert len(prms.prompt_logprob_token_indices) == len(
+                prompt_logprobs), "prompt_logprob_token_indices must match the length of prompt_logprobs"
         for token_position_in_logprob, prompt_logprobs_for_token in enumerate(
                 prompt_logprobs):
 
             # Absolute token position equals the index in the logprobs
             # list plus the offset of the entire logprobs list relative
             # to the start of the sequence.
-            token_position = token_position_in_logprob + position_offset
+            if not prms.prompt_logprob_token_indices:
+                token_position = token_position_in_logprob + position_offset
+            else:
+                # Use the provided token indices to determine the position.
+                token_position = prms.prompt_logprob_token_indices[
+                    token_position_in_logprob] + position_offset
             if not prompt_logprobs_for_token:
                 continue
             for token_id, sample_logprob in prompt_logprobs_for_token.items():
