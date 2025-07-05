@@ -66,8 +66,9 @@ class Detokenizer:
                 token_position = token_position_in_logprob + position_offset
             else:
                 # Use the provided token indices to determine the position.
+                # +1 because we do not add [None] to prompt_logprobs
                 token_position = prms.prompt_logprob_token_indices[
-                    token_position_in_logprob] + position_offset
+                    token_position_in_logprob] + 1 + position_offset
             if not prompt_logprobs_for_token:
                 continue
             for token_id, sample_logprob in prompt_logprobs_for_token.items():
