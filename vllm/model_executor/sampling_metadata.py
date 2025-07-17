@@ -262,6 +262,9 @@ def _prepare_seq_groups(
 
         sampling_params = seq_group_metadata.sampling_params
         is_prompt = seq_group_metadata.is_prompt
+        # <s2>
+        indices_provided = sampling_params.prompt_logprob_token_indices is not None
+        # </s2>
         generator: Optional[torch.Generator] = None
         # If the current seq group is in decode stage, it is None.
         seq_len: Optional[int] = None
@@ -289,6 +292,15 @@ def _prepare_seq_groups(
             prompt_logprob_len = (query_len - num_prefill_sample
                                   if do_sample else query_len)
             sample_len = num_prefill_sample if do_sample else 0
+            # <s2>
+            if indices_provided:
+                # Not sure about seq_ids[0]
+                idx = list(seq_ids)[0]
+                num_computed_tokens = seq_group_metadata.seq_data[idx].get_num_computed_tokens()
+                sp_prompt_logprob_indices = adjust_prompt_logprob_indices(
+                    sampling_params.prompt_logprob_token_indices,
+                    num_computed_tokens, prompt_logprob_len)
+            # </s2>
         else:
             # Decode
             prompt_logprob_len = 0
@@ -311,7 +323,8 @@ def _prepare_seq_groups(
         if sampling_params.prompt_logprobs is not None:
             selected_prompt_logprob_indices = list(
                 range(model_output_idx, model_output_idx + prompt_logprob_len))
-            if sampling_params.prompt_logprob_token_indices:
+            # <s2>
+            if indices_provided:
                 # selected_token_indices determines for which tokens we
                 # compute logprobs. To avoid OOM, we request only
                 # logprobs for the tokens specified in
@@ -323,8 +336,9 @@ def _prepare_seq_groups(
                 else:
                     selected_prompt_logprob_indices = [
                         selected_prompt_logprob_indices[idx]
-                        for idx in sampling_params.prompt_logprob_token_indices
+                        for idx in sp_prompt_logprob_indices
                     ]
+            # </s2>
             selected_token_indices.extend(selected_prompt_logprob_indices)
 
         model_output_idx += prompt_logprob_len
@@ -349,7 +363,8 @@ def _prepare_seq_groups(
         if sampling_params.prompt_logprobs is not None:
             new_prompt_logprob_indices = list(
                 range(logit_idx, logit_idx + prompt_logprob_len))
-            if sampling_params.prompt_logprob_token_indices:
+            # <s2>
+            if indices_provided:
                 # prompt_logprob_indices determines for which tokens we
                 # compute logprobs. To avoid OOM, we request only
                 # logprobs for the tokens specified in
@@ -361,8 +376,9 @@ def _prepare_seq_groups(
                 else:
                     new_prompt_logprob_indices = [
                         new_prompt_logprob_indices[idx]
-                        for idx in sampling_params.prompt_logprob_token_indices
+                        for idx in sp_prompt_logprob_indices
                     ]
+            # </s2>
             prompt_logprob_indices.extend(new_prompt_logprob_indices)
             logit_idx += len(new_prompt_logprob_indices)
         if do_sample:
@@ -626,3 +642,25 @@ class SamplingTensors:
             prompt_tokens=prompt_t.to(device=device, non_blocking=True),
             output_tokens=output_t.to(device=device, non_blocking=True),
         )
+
+
+def adjust_prompt_logprob_indices(
+    sp_prompt_logprob_indices,
+    num_computed_tokens,
+    prompt_logprob_len,
+):
+    """Adjust prompt logprob indices to the current prefill chunk. We subtract
+    num_computed_tokens from the indices and filter out indices that are
+    out of the range of the current prefill chunk.
+    """
+    if num_computed_tokens > 0:
+        sp_prompt_logprob_indices = [
+            idx - num_computed_tokens
+            for idx in sp_prompt_logprob_indices
+            if idx >= num_computed_tokens
+        ]
+    sp_prompt_logprob_indices = [
+        idx for idx in sp_prompt_logprob_indices
+        if idx < prompt_logprob_len
+    ]
+    return sp_prompt_logprob_indices

@@ -53,22 +53,35 @@ class Detokenizer:
         next_iter_tokens: list[str] = []
         prev_tokens = None
 
-        if prms.prompt_logprob_token_indices:
-            assert len(prms.prompt_logprob_token_indices) == len(
-                prompt_logprobs), "prompt_logprob_token_indices must match the length of prompt_logprobs"
+        # <s2>
+        indices_provided = prms.prompt_logprob_token_indices is not None
+        # We could assert that the number of prompt logprobs
+        # matches the number of prompt token IDs, but this assert makes
+        # sense only for the last chunk of the prompt.
+        # if indices_provided:
+        #     sp_prompt_logprob_indices = [
+        #         idx - position_offset
+        #         for idx in prms.prompt_logprob_token_indices
+        #         if idx >= position_offset
+        #     ]
+        #     sp_prompt_logprob_indices = sp_prompt_logprob_indices[:len(prompt_logprobs)]
+        #     assert len(sp_prompt_logprob_indices) == len(prompt_logprobs)
+        # </s2>
         for token_position_in_logprob, prompt_logprobs_for_token in enumerate(
                 prompt_logprobs):
 
             # Absolute token position equals the index in the logprobs
             # list plus the offset of the entire logprobs list relative
             # to the start of the sequence.
-            if not prms.prompt_logprob_token_indices:
+            if not indices_provided:
                 token_position = token_position_in_logprob + position_offset
             else:
+                # <s2>
                 # Use the provided token indices to determine the position.
                 # +1 because we do not add [None] to prompt_logprobs
                 token_position = prms.prompt_logprob_token_indices[
                     token_position_in_logprob] + 1 + position_offset
+                # </s2>
             if not prompt_logprobs_for_token:
                 continue
             for token_id, sample_logprob in prompt_logprobs_for_token.items():

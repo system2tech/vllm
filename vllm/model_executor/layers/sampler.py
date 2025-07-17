@@ -16,7 +16,8 @@ import vllm.envs as envs
 from vllm.model_executor.layers.utils import apply_penalties
 from vllm.model_executor.sampling_metadata import (SamplingMetadata,
                                                    SamplingTensors,
-                                                   SequenceGroupToSample)
+                                                   SequenceGroupToSample,
+                                                   adjust_prompt_logprob_indices)
 from vllm.sampling_params import SamplingType
 from vllm.sequence import (VLLM_INVALID_TOKEN_ID,
                            CompletionSequenceGroupOutput, Logprob,
@@ -1201,13 +1202,21 @@ def _get_next_prompt_tokens(
     next_token_index_start = computed_len + 1
     next_token_index_end = min(computed_len + query_len + 1,
                                len(prompt_tokens))
-    if not seq_group.sampling_params.prompt_logprob_token_indices:
+    indices_provided = seq_group.sampling_params.prompt_logprob_token_indices is not None
+    if not indices_provided:
         next_prompt_tokens = prompt_tokens[
             next_token_index_start:next_token_index_end]
     else:
+        # <s2>
+        # Not sure if we should use query_len
+        # or next_token_index_end-next_token_index_start.
+        sp_prompt_logprob_indices = adjust_prompt_logprob_indices(
+            seq_group.sampling_params.prompt_logprob_token_indices, computed_len,
+            next_token_index_end-next_token_index_start,  # or query_len?
+        )
         next_prompt_tokens = [
             prompt_tokens[next_token_index_start + i]
-            for i in seq_group.sampling_params
-            .prompt_logprob_token_indices
+            for i in sp_prompt_logprob_indices
         ]
+        # </s2>
     return next_prompt_tokens
