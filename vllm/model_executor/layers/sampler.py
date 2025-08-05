@@ -886,10 +886,17 @@ def get_logprobs(
             torch.arange(next_token_ids_gpu.size(0), device=logprobs.device),
             next_token_ids_gpu,
         ]]
-        ranks = _get_ranks(
-            logprobs,
-            next_token_ids_gpu,
-        )
+        # <s2>
+        # ranks = _get_ranks(
+        #     logprobs,
+        #     next_token_ids_gpu,
+        # )
+        ranks = torch.full(
+            (next_token_ids_gpu.size(0),),
+            fill_value=-1,
+            device='cpu',
+        )  # (N,)
+        # </s2>
         assert selected_logprobs.shape[0] == ranks.shape[0]
 
         # We need to compute top k only if there exists logprobs > 0.
